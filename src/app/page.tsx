@@ -1,65 +1,184 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NoteDialog } from "@/components/notes/NoteDialog";
+import { NoteGrid } from "@/components/notes/NoteGrid";
+import { NoteToolbar } from "@/components/notes/NoteToolbar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { fetchNotes, createNote, updateNote, archiveNote, type Note, type NoteFormPayload } from "@/lib/api/notes";
 
 export default function Home() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [activeTab, setActiveTab] = useState("active");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | undefined>(undefined);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const filteredTags = useMemo(() => {
+    const tagSet = new Set(notes.flatMap((note) => note.tags));
+    return Array.from(tagSet).sort();
+  }, [notes]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await fetchNotes({
+        archived: activeTab === "archived",
+        search: debouncedSearch || undefined,
+        tag: tagFilter,
+      });
+
+      setNotes(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load notes.");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, debouncedSearch, tagFilter]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
+  const openNewNote = useCallback(() => {
+    setActiveNote(null);
+    setDialogOpen(true);
+  }, []);
+
+  const openEditNote = useCallback((note: Note) => {
+    setActiveNote(note);
+    setDialogOpen(true);
+  }, []);
+
+  const handleSaveNote = useCallback(
+    async (payload: NoteFormPayload) => {
+      setIsSaving(true);
+      setError(null);
+
+      try {
+        if (activeNote) {
+          await updateNote(activeNote.id, payload);
+        } else {
+          await createNote(payload);
+        }
+
+        await loadNotes();
+        setDialogOpen(false);
+        setActiveNote(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to save note.";
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [activeNote, loadNotes],
+  );
+
+  const handleArchiveNote = useCallback(
+    async (id: string) => {
+      setError(null);
+      try {
+        await archiveNote(id);
+        await loadNotes();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to archive note.");
+      }
+    },
+    [loadNotes],
+  );
+
+  const handleTogglePin = useCallback(
+    async (note: Note) => {
+      setError(null);
+      try {
+        await updateNote(note.id, { pinned: !note.pinned });
+        await loadNotes();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to update note.");
+      }
+    },
+    [loadNotes],
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[.3em] text-slate-500">DevBrain</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Personal knowledge vault</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Create, search, pin, and archive notes in a lightweight, polished workspace built for fast capture.
+              </p>
+            </div>
+            <NoteToolbar search={search} onSearchChange={setSearch} onOpenNew={openNewNote} />
+          </div>
+
+          <NoteDialog
+            open={dialogOpen}
+            note={activeNote}
+            isSaving={isSaving}
+            onOpenChange={setDialogOpen}
+            onSave={handleSaveNote}
+          />
+
+          <Tabs defaultValue="active" value={activeTab} onValueChange={(value) => { setActiveTab(value); setTagFilter(undefined); }}>
+            <TabsList>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="archived">Archived</TabsTrigger>
+            </TabsList>
+            <TabsContent value="active">
+              <div className="flex flex-wrap gap-2">
+                {filteredTags.length > 0 ? (
+                  filteredTags.map((tag) => (
+                    <Button
+                      key={tag}
+                      variant={tagFilter === tag ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => setTagFilter(tagFilter === tag ? undefined : tag)}
+                    >
+                      #{tag}
+                    </Button>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No tags available yet.</p>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="archived" />
+          </Tabs>
+
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+          <section className="space-y-4">
+            <NoteGrid
+              notes={notes}
+              loading={loading}
+              activeTab={activeTab}
+              onEdit={openEditNote}
+              onTogglePin={handleTogglePin}
+              onArchive={handleArchiveNote}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </section>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
