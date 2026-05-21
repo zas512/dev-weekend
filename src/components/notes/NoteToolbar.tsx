@@ -6,7 +6,7 @@ type NoteToolbarProps = {
   search: string;
   onSearchChange: (value: string) => void;
   onOpenNew: () => void;
-  searchRef?: React.RefObject<HTMLInputElement>;
+  searchRef?: React.RefObject<HTMLInputElement | null>;
 };
 
 export function NoteToolbar({ search, onSearchChange, onOpenNew, searchRef }: NoteToolbarProps) {

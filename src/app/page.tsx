@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NoteDialog } from "@/components/notes/NoteDialog";
 import { NoteGrid } from "@/components/notes/NoteGrid";
@@ -31,33 +31,77 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  const controllerRef = useRef<AbortController | null>(null);
+
   const loadNotes = useCallback(async () => {
+    // abort any pending fetch
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
 
     try {
-      const result = await fetchNotes({
-        archived: activeTab === "archived",
-        search: debouncedSearch || undefined,
-        tag: tagFilter,
-      });
+      const result = await fetchNotes(
+        {
+          archived: activeTab === "archived",
+          search: debouncedSearch || undefined,
+          tag: tagFilter,
+        },
+        controller.signal,
+      );
 
       setNotes(result);
     } catch (err) {
+      if ((err as any)?.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Unable to load notes.");
     } finally {
       setLoading(false);
+      // clear controller if it's still this one
+      if (controllerRef.current === controller) controllerRef.current = null;
     }
   }, [activeTab, debouncedSearch, tagFilter]);
 
   useEffect(() => {
     loadNotes();
+    return () => {
+      if (controllerRef.current) controllerRef.current.abort();
+    };
   }, [loadNotes]);
 
   const openNewNote = useCallback(() => {
     setActiveNote(null);
     setDialogOpen(true);
   }, []);
+
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  // global keyboard shortcuts: '/' to focus search, 'n' to open new note
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement?.tagName?.toLowerCase();
+
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (active !== "input" && active !== "textarea" && active !== "select") {
+          e.preventDefault();
+          searchRef.current?.focus();
+        }
+      }
+
+      if (e.key.toLowerCase() === "n" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        if (active !== "input" && active !== "textarea") {
+          e.preventDefault();
+          openNewNote();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openNewNote]);
 
   const openEditNote = useCallback((note: Note) => {
     setActiveNote(note);
@@ -128,7 +172,7 @@ export default function Home() {
                 Create, search, pin, and archive notes in a lightweight, polished workspace built for fast capture.
               </p>
             </div>
-            <NoteToolbar search={search} onSearchChange={setSearch} onOpenNew={openNewNote} />
+            <NoteToolbar search={search} onSearchChange={setSearch} onOpenNew={openNewNote} searchRef={searchRef} />
           </div>
 
           <NoteDialog

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,35 @@ export function NoteDialog({ open, note, isSaving, onOpenChange, onSave }: NoteD
     setPinned(note?.pinned ?? false);
     setFormError(null);
   }, [note, open]);
+
+  // handle keyboard shortcuts inside the dialog
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    if (!open) return;
+
+    const onKey = async (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Enter -> submit
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (isSaving || submittedRef.current) return;
+        submittedRef.current = true;
+        try {
+          await handleSubmit(new Event("submit") as unknown as FormEvent<HTMLFormElement>);
+        } finally {
+          submittedRef.current = false;
+        }
+      }
+
+      // Escape -> close
+      if (e.key === "Escape") {
+        onOpenChange(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isSaving, title, content, tags, pinned]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
