@@ -1,27 +1,36 @@
-import { NextResponse } from 'next/server';
-import { ZodError } from 'zod';
-import { archiveNote, getNoteById, ServiceError, updateNote } from '@/server/services/notes.service';
+import { NextResponse } from "next/server";
+import { ZodError } from "zod";
+import {
+  archiveNote,
+  getNoteById,
+  ServiceError,
+  updateNote
+} from "@/server/services/notes.service";
 
 function errorResponse(error: unknown) {
   if (error instanceof ServiceError) {
-    return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.statusCode }
+    );
   }
-
   if (error instanceof ZodError) {
-    return NextResponse.json({ error: error.errors.map((item) => item.message).join(', ') }, { status: 400 });
+    return NextResponse.json(
+      { error: error.errors.map((item) => item.message).join(", ") },
+      { status: 400 }
+    );
   }
-
-  return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const params = await context.params;
     const url = new URL(request.url);
-    const archived = url.searchParams.get('archived') === 'true';
+    const archived = url.searchParams.get("archived") === "true";
     const note = await getNoteById(params.id, archived);
     return NextResponse.json(note);
   } catch (error) {
@@ -31,7 +40,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const params = await context.params;
@@ -45,7 +54,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const params = await context.params;

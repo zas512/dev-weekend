@@ -1,15 +1,18 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-const trimmedTitle = z.string().trim().min(1, { message: 'Title is required' });
+const trimmedTitle = z.string().trim().min(1, { message: "Title is required" });
 
 export const createNoteSchema = z.object({
   title: trimmedTitle,
-  content: z.string().optional().transform((value) => value ?? ''),
+  content: z
+    .string()
+    .optional()
+    .transform((value) => value ?? ""),
   tags: z
     .array(z.string().trim())
     .optional()
     .transform((value) => value?.filter((tag) => tag.length > 0) ?? []),
-  pinned: z.boolean().optional().default(false),
+  pinned: z.boolean().optional().default(false)
 });
 
 export const updateNoteSchema = z
@@ -19,12 +22,11 @@ export const updateNoteSchema = z
     tags: z
       .array(z.string().trim())
       .optional()
-      .transform((value) => (value ? value.filter((tag) => tag.length > 0) : undefined)),
-    pinned: z.boolean().optional(),
+      .transform((value) =>
+        value ? value.filter((tag) => tag.length > 0) : undefined
+      ),
+    pinned: z.boolean().optional()
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field must be provided',
+    message: "At least one field must be provided"
   });
-
-export type CreateNoteInput = z.input<typeof createNoteSchema>;
-export type UpdateNoteInput = z.input<typeof updateNoteSchema>;

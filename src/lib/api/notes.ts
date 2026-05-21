@@ -36,7 +36,9 @@ const parseError = async (response: Response) => {
 };
 
 export async function fetchNotes(query: NotesQuery = {}, signal?: AbortSignal) {
-  const response = await fetch(`/api/notes?${createQueryString(query)}`, { signal });
+  const response = await fetch(`/api/notes?${createQueryString(query)}`, {
+    signal
+  });
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
@@ -47,35 +49,33 @@ export async function createNote(payload: NoteFormPayload) {
   const response = await fetch("/api/notes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload)
   });
-
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
-
   return response.json() as Promise<Note>;
 }
 
-export async function updateNote(id: string, payload: Partial<NoteFormPayload>) {
+export async function updateNote(
+  id: string,
+  payload: Partial<NoteFormPayload>
+) {
   const response = await fetch(`/api/notes/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload)
   });
-
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
-
   return response.json() as Promise<Note>;
 }
 
 export async function archiveNote(id: string) {
   const response = await fetch(`/api/notes/${id}`, {
-    method: "DELETE",
+    method: "DELETE"
   });
-
   if (!response.ok) {
     throw new Error(await parseError(response));
   }

@@ -1,13 +1,18 @@
 "use client";
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NoteDialog } from "@/components/notes/NoteDialog";
 import { NoteGrid } from "@/components/notes/NoteGrid";
 import { NoteToolbar } from "@/components/notes/NoteToolbar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { fetchNotes, createNote, updateNote, archiveNote, type Note, type NoteFormPayload } from "@/lib/api/notes";
+import {
+  fetchNotes,
+  createNote,
+  updateNote,
+  archiveNote,
+  type Note,
+  type NoteFormPayload
+} from "@/lib/api/notes";
 
 export default function Home() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -20,55 +25,53 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const controllerRef = useRef<AbortController | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const compareStrings = (a: string, b: string) =>
+    a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
   const filteredTags = useMemo(() => {
     const tagSet = new Set(notes.flatMap((note) => note.tags));
-    return Array.from(tagSet).sort();
+    return Array.from(tagSet).sort(compareStrings);
   }, [notes]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
-    return () => window.clearTimeout(timer);
+    const timer = globalThis.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => globalThis.clearTimeout(timer);
   }, [search]);
 
-  const controllerRef = useRef<AbortController | null>(null);
-
-  const loadNotes = useCallback(async () => {
-    // abort any pending fetch
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await fetchNotes(
-        {
-          archived: activeTab === "archived",
-          search: debouncedSearch || undefined,
-          tag: tagFilter,
-        },
-        controller.signal,
-      );
-
-      setNotes(result);
-    } catch (err) {
-      if ((err as any)?.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Unable to load notes.");
-    } finally {
-      setLoading(false);
-      // clear controller if it's still this one
-      if (controllerRef.current === controller) controllerRef.current = null;
-    }
-  }, [activeTab, debouncedSearch, tagFilter]);
+  const loadNotes = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await fetchNotes(
+          {
+            archived: activeTab === "archived",
+            search: debouncedSearch || undefined,
+            tag: tagFilter
+          },
+          signal
+        );
+        setNotes(result);
+      } catch (err) {
+        if ((err as { name: string })?.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Unable to load notes.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [activeTab, debouncedSearch, tagFilter]
+  );
 
   useEffect(() => {
-    loadNotes();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    queueMicrotask(() => {
+      void loadNotes(controller.signal);
+    });
     return () => {
-      if (controllerRef.current) controllerRef.current.abort();
+      controller.abort();
+      if (controllerRef.current === controller) controllerRef.current = null;
     };
   }, [loadNotes]);
 
@@ -76,32 +79,6 @@ export default function Home() {
     setActiveNote(null);
     setDialogOpen(true);
   }, []);
-
-  const searchRef = useRef<HTMLInputElement | null>(null);
-
-  // global keyboard shortcuts: '/' to focus search, 'n' to open new note
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const active = document.activeElement?.tagName?.toLowerCase();
-
-      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (active !== "input" && active !== "textarea" && active !== "select") {
-          e.preventDefault();
-          searchRef.current?.focus();
-        }
-      }
-
-      if (e.key.toLowerCase() === "n" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        if (active !== "input" && active !== "textarea") {
-          e.preventDefault();
-          openNewNote();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openNewNote]);
 
   const openEditNote = useCallback((note: Note) => {
     setActiveNote(note);
@@ -112,26 +89,25 @@ export default function Home() {
     async (payload: NoteFormPayload) => {
       setIsSaving(true);
       setError(null);
-
       try {
         if (activeNote) {
           await updateNote(activeNote.id, payload);
         } else {
           await createNote(payload);
         }
-
         await loadNotes();
         setDialogOpen(false);
         setActiveNote(null);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unable to save note.";
+        const message =
+          err instanceof Error ? err.message : "Unable to save note.";
         setError(message);
         throw new Error(message);
       } finally {
         setIsSaving(false);
       }
     },
-    [activeNote, loadNotes],
+    [activeNote, loadNotes]
   );
 
   const handleArchiveNote = useCallback(
@@ -141,10 +117,12 @@ export default function Home() {
         await archiveNote(id);
         await loadNotes();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to archive note.");
+        setError(
+          err instanceof Error ? err.message : "Unable to archive note."
+        );
       }
     },
-    [loadNotes],
+    [loadNotes]
   );
 
   const handleTogglePin = useCallback(
@@ -157,7 +135,7 @@ export default function Home() {
         setError(err instanceof Error ? err.message : "Unable to update note.");
       }
     },
-    [loadNotes],
+    [loadNotes]
   );
 
   return (
@@ -166,15 +144,24 @@ export default function Home() {
         <div className="flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[.3em] text-slate-500">DevBrain</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Personal knowledge vault</h1>
+              <p className="text-sm uppercase tracking-[.3em] text-slate-500">
+                DevBrain
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                Personal knowledge vault
+              </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                Create, search, pin, and archive notes in a lightweight, polished workspace built for fast capture.
+                Create, search, pin, and archive notes in a lightweight,
+                polished workspace built for fast capture.
               </p>
             </div>
-            <NoteToolbar search={search} onSearchChange={setSearch} onOpenNew={openNewNote} searchRef={searchRef} />
+            <NoteToolbar
+              search={search}
+              onSearchChange={setSearch}
+              onOpenNew={openNewNote}
+              searchRef={searchRef}
+            />
           </div>
-
           <NoteDialog
             open={dialogOpen}
             note={activeNote}
@@ -182,8 +169,14 @@ export default function Home() {
             onOpenChange={setDialogOpen}
             onSave={handleSaveNote}
           />
-
-          <Tabs defaultValue="active" value={activeTab} onValueChange={(value) => { setActiveTab(value); setTagFilter(undefined); }}>
+          <Tabs
+            defaultValue="active"
+            value={activeTab}
+            onValueChange={(value) => {
+              setActiveTab(value);
+              setTagFilter(undefined);
+            }}
+          >
             <TabsList>
               <TabsTrigger value="active">Active</TabsTrigger>
               <TabsTrigger value="archived">Archived</TabsTrigger>
@@ -196,21 +189,23 @@ export default function Home() {
                       key={tag}
                       variant={tagFilter === tag ? "secondary" : "outline"}
                       size="sm"
-                      onClick={() => setTagFilter(tagFilter === tag ? undefined : tag)}
+                      onClick={() =>
+                        setTagFilter(tagFilter === tag ? undefined : tag)
+                      }
                     >
                       #{tag}
                     </Button>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">No tags available yet.</p>
+                  <p className="text-sm text-slate-500">
+                    No tags available yet.
+                  </p>
                 )}
               </div>
             </TabsContent>
             <TabsContent value="archived" />
           </Tabs>
-
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
           <section className="space-y-4">
             <NoteGrid
               notes={notes}

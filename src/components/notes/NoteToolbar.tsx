@@ -9,7 +9,12 @@ type NoteToolbarProps = {
   searchRef?: React.RefObject<HTMLInputElement | null>;
 };
 
-export function NoteToolbar({ search, onSearchChange, onOpenNew, searchRef }: NoteToolbarProps) {
+export function NoteToolbar({
+  search,
+  onSearchChange,
+  onOpenNew,
+  searchRef
+}: Readonly<NoteToolbarProps>) {
   return (
     <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="relative w-full max-w-sm">

@@ -16,7 +16,7 @@ export function NoteGrid({
   activeTab,
   onEdit,
   onTogglePin,
-  onArchive,
+  onArchive
 }: Readonly<NoteGridProps>) {
   if (loading) {
     return (
@@ -25,7 +25,6 @@ export function NoteGrid({
       </div>
     );
   }
-
   if (notes.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
@@ -35,7 +34,6 @@ export function NoteGrid({
       </div>
     );
   }
-
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {notes.map((note) => (
