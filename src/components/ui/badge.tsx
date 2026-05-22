@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, HTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const badgeVariants = cva(
 
 const Badge = forwardRef<
   HTMLSpanElement,
-  React.HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeVariants>
+  HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeVariants>
 >(({ className, variant, ...props }, ref) => (
   <span
     ref={ref}

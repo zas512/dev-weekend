@@ -1,12 +1,13 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RefObject } from "react";
 
 type NoteToolbarProps = {
   search: string;
   onSearchChange: (value: string) => void;
   onOpenNew: () => void;
-  searchRef?: React.RefObject<HTMLInputElement | null>;
+  searchRef?: RefObject<HTMLInputElement | null>;
 };
 
 export function NoteToolbar({

@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DevBrain
 
-## Getting Started
+A small persistent notes app: create, search, pin, tag, edit, and archive notes. Data is stored in a local SQLite database and survives restarts.
 
-First, run the development server:
+## Prerequisites
+
+- **Node.js 20+** ([nodejs.org](https://nodejs.org))
+- **npm** (included with Node)
+
+## Run on a fresh machine
+
+From the repository root:
 
 ```bash
+npm install
+npm run setup
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`npm run setup` generates the Prisma client and applies the SQLite migration (creates `prisma/dev.db` on first run).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Persistence check
 
-## Learn More
+1. Create a few notes (use **New note**).
+2. Stop the dev server (`Ctrl+C`).
+3. Run `npm run dev` again.
+4. Your notes should still appear.
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the development server |
+| `npm run setup` | Generate Prisma client + apply migrations |
+| `npm run build` | Production build |
+| `npm run start` | Run production server (after `build`) |
+| `npm run lint` | ESLint |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Stack
 
-## Deploy on Vercel
+- **Next.js** (App Router) — UI and API routes
+- **Prisma** + **SQLite** — local file persistence (`prisma/dev.db`)
+- **TypeScript**, **Tailwind CSS**, **Zod** — types, styling, validation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [ANSWERS.md](./ANSWERS.md) for design choices, edge cases, and assessment responses.
